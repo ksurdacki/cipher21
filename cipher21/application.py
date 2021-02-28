@@ -1,23 +1,19 @@
 import sys
 import logging
 import argparse
+from datetime import datetime, timezone
 from typing import Sequence, MutableSequence, Optional
 
 from .arguments_parser import ArgumentsParser
 from .operation_mode import OperationMode
-from .bytes_utils import clear_secret
-from .blocking_io import read_all, write_all
-from .constants import STREAM_HEADER_LENGTH, FOOTER_LENGTH, STREAM_LENGTH_MULTIPLICAND
-from .encrypter import Encrypter
-from .decrypter import Decrypter
+from .blocking_io import encrypt_stream, decrypt_stream
+from .stream_attributes import StreamAttributes
 
 
-logger = logging.getLogger('cipher21')
+logger = logging.getLogger(__name__)
 
 
 class Application:
-
-    buffer_size = 2**16
 
     def __init__(self, args: Sequence[str]):
         args = list(args)
@@ -33,68 +29,43 @@ class Application:
         except ValueError:
             return None
 
-    def run(self):
+    def run(self) -> None:
         if self.parsed_args.help:
             sys.stdout.write(self.args_parser.format_help())
         elif self.parsed_args.operation_mode is OperationMode.ENCRYPTION:
             self.encrypt()
-        elif self.parsed_args.operation_mode in (
-                OperationMode.VERIFICATION, OperationMode.DECRYPTION
-        ):
+        elif self.parsed_args.operation_mode in (OperationMode.VERIFICATION, OperationMode.DECRYPTION):
             self.decrypt()
         else:
-            assert False
+            assert False, self.parsed_args
 
     def encrypt(self) -> None:
-        buffer = bytearray(self.buffer_size)
-        view = memoryview(buffer)
-        try:
-            length = read_all(buffer, self.parsed_args.input)
-            encrypter = Encrypter(self.parsed_args.key.bytes)
-            write_all(self.parsed_args.output, encrypter.initialize())
-            while length:
-                write_all(self.parsed_args.output, encrypter.process_chunk(view[:length]))
-                length = read_all(buffer, self.parsed_args.input)
-        finally:
-            clear_secret(buffer)
-        write_all(self.parsed_args.output, encrypter.finalize())
+        encrypter = encrypt_stream(
+            self.parsed_args.output, self.parsed_args.input, self.parsed_args.key.bytes
+        )
+        self.log_stream_attributes(encrypter)
 
     def decrypt(self) -> None:
-        decrypter = self.create_decrypter()
+        decrypter = decrypt_stream(
+            self.parsed_args.output, self.parsed_args.input, self.parsed_args.key.bytes
+        )
+        self.log_stream_attributes(decrypter)
         if decrypter.stream_timestamp_ns <= self.parsed_args.after_ns:
             raise ValueError('Not encrypted --after ' + self.parsed_args.after + '.')
-        self.do_decrypt(decrypter)
 
-    def create_decrypter(self) -> Decrypter:
-        buffer = bytearray(STREAM_HEADER_LENGTH)
-        length = read_all(buffer, self.parsed_args.input)
-        if length != STREAM_HEADER_LENGTH:
-            raise ValueError('Not enough data.')
-        decrypted = Decrypter(self.parsed_args.key.bytes)
-        decrypted.initialize(buffer)
-        return decrypted
+    def log_stream_attributes(self, attrs: StreamAttributes) -> None:
+        logging.info('encryption timestamp [ISO 8601]: '
+                     + self.format_timestamp_ns(attrs.stream_timestamp_ns))
+        logging.info('encryption timestamp [ns since Unix epoch]: {}'
+                     .format(attrs.stream_timestamp_ns))
+        logging.info('payload length [bytes]: {}'.format(attrs.payload_length))
+        logging.info('MAC: ' + attrs.mac.hex())
 
-    def do_decrypt(self, decrypter: Decrypter) -> None:
-        assert self.buffer_size > STREAM_LENGTH_MULTIPLICAND + FOOTER_LENGTH, self.buffer_size
-        prev_buffer = bytearray(self.buffer_size)
-        prev_length = read_all(prev_buffer, self.parsed_args.input)
-        next_buffer = bytearray(self.buffer_size)
-        next_length = read_all(next_buffer, self.parsed_args.input)
-        out_buffer = bytearray(self.buffer_size)
-        try:
-            while next_length == len(next_buffer):
-                assert prev_length == next_length, (prev_length, next_length)
-                decrypter.process_chunk(prev_buffer, out_buffer)
-                write_all(self.parsed_args.output, out_buffer)
-                temp = prev_buffer
-                prev_buffer = next_buffer
-                next_buffer = temp
-                next_length = read_all(next_buffer, self.parsed_args.input)
-            clear_secret(out_buffer)
-            out_buffer = decrypter.finalize(prev_buffer[:prev_length] + next_buffer[:next_length])
-            write_all(self.parsed_args.output, out_buffer)
-        finally:
-            clear_secret(out_buffer)
+    @staticmethod
+    def format_timestamp_ns(ns: int) -> str:
+        ts, ns = divmod(ns, 10**9)
+        dt = datetime.fromtimestamp(ts, tz=timezone.utc)
+        return dt.strftime('%Y-%m%dT%H:%M:%S') + '.{:09}Z'.format(ns)
 
     def __enter__(self):
         return self

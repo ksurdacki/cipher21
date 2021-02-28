@@ -6,8 +6,9 @@ import sys
 from typing import Sequence
 import argparse
 
-from cipher21.operation_mode import OperationMode
-from cipher21.key import Cipher21Key
+from .operation_mode import OperationMode
+from .key import Cipher21Key
+from .null_stream import NullStream
 
 
 class ArgumentsParser:
@@ -27,7 +28,7 @@ class ArgumentsParser:
             parsed_args.key = self.fetch_key(parsed_args.key_location)
             parsed_args.input = sys.stdin.buffer
             if parsed_args.operation_mode is OperationMode.VERIFICATION:
-                parsed_args.output = open(os.devnull, 'ab')
+                parsed_args.output = NullStream()
             else:
                 parsed_args.output = sys.stdout.buffer
         return parsed_args
