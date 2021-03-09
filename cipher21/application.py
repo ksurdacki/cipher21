@@ -1,6 +1,7 @@
 import sys
 import logging
 import argparse
+import time
 from datetime import datetime, timezone
 from typing import Sequence, MutableSequence, Optional
 
@@ -16,11 +17,16 @@ logger = logging.getLogger(__name__)
 class Application:
 
     def __init__(self, args: Sequence[str]):
+        self.start_time = self.get_monotonic_time()
         args = list(args)
         self.args_parser = ArgumentsParser()
         logging_level = logging.DEBUG if self.pop_debug_arg(args) else logging.INFO
         logging.basicConfig(format='%(message)s', level=logging_level)
         self.parsed_args = self.args_parser.parse(args)
+
+    @staticmethod
+    def get_monotonic_time() -> float:
+        return time.monotonic()
 
     @staticmethod
     def pop_debug_arg(args: MutableSequence[str]) -> Optional[str]:
@@ -54,12 +60,10 @@ class Application:
             raise ValueError('Not encrypted --after ' + self.parsed_args.after + '.')
 
     def log_stream_attributes(self, attrs: StreamAttributes) -> None:
-        logging.info('encryption timestamp [ISO 8601]: '
-                     + self.format_timestamp_ns(attrs.stream_timestamp_ns))
-        logging.info('encryption timestamp [ns since Unix epoch]: {}'
-                     .format(attrs.stream_timestamp_ns))
-        logging.info('payload length [bytes]: {}'.format(attrs.payload_length))
-        logging.info('MAC: ' + attrs.mac.hex())
+        logging.info('processing time: {:.3f} s'.format(self.get_monotonic_time() - self.start_time))
+        logging.info('encryption timestamp: ' + self.format_timestamp_ns(attrs.stream_timestamp_ns))
+        logging.info('payload length: {:,} B'.format(attrs.payload_length))
+        logging.info('MAC: ' + attrs.mac.hex().upper())
 
     @staticmethod
     def format_timestamp_ns(ns: int) -> str:

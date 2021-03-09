@@ -46,7 +46,7 @@ class Decrypter(StreamAttributes):
 
     def finalize(self, chunk: Bytes, output: Optional[MutableBytes] = None) -> memoryview:
         assert self.cipher
-        assert len(chunk) >= FOOTER_LENGTH, (len(chunk), FOOTER_LENGTH)
+        assert len(chunk) >= STREAM_FOOTER_LENGTH, (len(chunk), STREAM_FOOTER_LENGTH)
         if output:
             output = memoryview(output)[:len(chunk) - MAC_LENGTH]
         else:
