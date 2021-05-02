@@ -1,5 +1,7 @@
 from random import SystemRandom
-from typing import Union, Container
+from typing import Container
+
+from .typing import Bytes, MutableBytes
 
 
 __all__ = (
@@ -13,7 +15,7 @@ __all__ = (
 _rng = SystemRandom()
 
 
-def clear_secret(secret: Union[bytearray, memoryview]) -> None:
+def clear_secret(secret: MutableBytes) -> None:
     for i in range(len(secret)):
         secret[i] = 0xFF
     for i in range(len(secret)):
@@ -22,7 +24,7 @@ def clear_secret(secret: Union[bytearray, memoryview]) -> None:
         secret[i] = _rng.getrandbits(8)
 
 
-def count_unique_bytes(b: bytes) -> int:
+def count_unique_bytes(b: Bytes) -> int:
     occurrences = bytearray(256)
     for x in b:
         occurrences[x] = 1
@@ -31,24 +33,23 @@ def count_unique_bytes(b: bytes) -> int:
     return result
 
 
-def differentiate_bytes(b: bytes) -> bytearray:
-    derivative = bytearray(len(b))
-    p = bytearray(1)
-    for i in range(len(b)):
-        derivative[i] = (b[i] - p[0]) & 0xFF
-        p[0] = b[i]
-    clear_secret(p)
+def differentiate_bytes(b: Bytes) -> bytearray:
+    if not b:
+        return bytearray()
+    derivative = bytearray(len(b) - 1)
+    for i in range(1, len(b)):
+        derivative[i-1] = (b[i] - b[i-1]) & 0xFF
     return derivative
 
 
-def unhexlify(hexes: bytes, ignored_bytes=frozenset(ord(c) for c in '\t\n\v\f\r .:')) \
+def unhexlify(hexes: Bytes, ignored_bytes=frozenset(ord(c) for c in '\t\n\v\f\r .,:;-')) \
         -> bytearray:
     return HexToBinSecureConverter(hexes, ignored_bytes).unhexlify()
 
 
 class HexToBinSecureConverter:
 
-    def __init__(self, hexes: bytes, ignored_bytes: Container[int]):
+    def __init__(self, hexes: Bytes, ignored_bytes: Container[int]):
         self._hexes = hexes
         self.ignored_bytes = ignored_bytes
         self._x = bytearray(1)
