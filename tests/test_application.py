@@ -64,16 +64,21 @@ class TestCase:
 
 class ApplicationTest(unittest.TestCase):
 
-    TEST_SIZE_ORIGINS \
-        = tuple(range(1, 35, 3)) \
-        + tuple((40, 48, 51, 64, 80, 96)) \
-        + tuple(10 ** p for p in range(2, 8)) \
-        + tuple(2 ** p for p in range(7, 26)) \
-        + tuple(-STREAM_METADATA_LENGTH + i*STREAM_LENGTH_MULTIPLICAND for i in range(1, 21)) \
-        + tuple(-STREAM_METADATA_LENGTH + 2**p * STREAM_LENGTH_MULTIPLICAND for p in range(5, 10))
-    TEST_SIZES = tuple(sorted(chain(
-        *((s - 1, s, s + 1) for s in TEST_SIZE_ORIGINS)
-    )))
+    TEST_SIZES \
+        = tuple(range(65)) \
+        + (143, 515, 444, 326, 334, 209, 935, 275) \
+        + (5524, 8906, 1466, 8321, 5692, 4374, 4053, 9282) \
+        + (14518, 84359, 12638, 87232, 94725, 71421, 35767, 17381) \
+        + (548892, 102162, 722359, 633604, 103090, 543886, 587002, 607991) \
+        + (5217191, 1855153, 4292980, 3294232, 5312576, 6218242, 6121493, 2255042) \
+        + (19392990, 55036300, 78146992, 97402641, 20209853, 19024091, 49992291, 21339685) \
+        + tuple(-1-STREAM_METADATA_LENGTH + i*STREAM_LENGTH_MULTIPLICAND for i in range(1, 21)) \
+        + tuple(+0-STREAM_METADATA_LENGTH + i*STREAM_LENGTH_MULTIPLICAND for i in range(1, 21)) \
+        + tuple(+1-STREAM_METADATA_LENGTH + i*STREAM_LENGTH_MULTIPLICAND for i in range(1, 21)) \
+        + tuple(-1-STREAM_METADATA_LENGTH + 2**p * STREAM_LENGTH_MULTIPLICAND for p in range(5, 10)) \
+        + tuple(+0-STREAM_METADATA_LENGTH + 2**p * STREAM_LENGTH_MULTIPLICAND for p in range(5, 10)) \
+        + tuple(+1-STREAM_METADATA_LENGTH + 2**p * STREAM_LENGTH_MULTIPLICAND for p in range(5, 10))
+    TEST_SIZES = tuple(sorted(TEST_SIZES))
 
     def setUp(self) -> None:
         self.prng = Random()  # For test repetitiveness purpose only. Use SystemRandom ordinarily.
