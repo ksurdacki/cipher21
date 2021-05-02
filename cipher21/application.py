@@ -85,13 +85,18 @@ class Application:
             self.parsed_args.key.clear()
 
 
-if __name__ == '__main__':
+def main() -> int:
     try:
         with Application(sys.argv[1:]) as app:
             app.run()
     except Exception as e:
         logger.error(str(e), exc_info=logger.isEnabledFor(logging.DEBUG))
-        sys.exit(2 if isinstance(e, argparse.ArgumentError) else 1)
+        return 2 if isinstance(e, argparse.ArgumentError) else 1
     except KeyboardInterrupt as e:
-        logger.error('Process externally interrupted.')
-        sys.exit(1)
+        logger.error('Process interrupted externally.')
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
